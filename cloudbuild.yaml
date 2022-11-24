@@ -3,7 +3,7 @@ steps:
 - name: 'gcr.io/cloud-builders/mvn:appengine'
   id: deploy-app-engine-compras-servicios
   args: ["-D", "skipTests", "clean", "package", "appengine:deploy","-P${_ENV}","-Dapp.stage.appEngineDirectory=src/main/appengine/${_ENV}"]
-substitutions:
-    _ENV: test
+
+   
 options:
    substitution_option: 'ALLOW_LOOSE'
