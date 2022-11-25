@@ -22,6 +22,5 @@ steps:
   args: [ 'push', 'gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}','-a']
 
 
-  _ZONE: us-central1-a
 options:
   substitution_option: 'ALLOW_LOOSE'
