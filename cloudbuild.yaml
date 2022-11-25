@@ -1,9 +1,41 @@
 steps:
-# Execute APP Engine Deployment
-- name: 'gcr.io/cloud-builders/mvn:appengine'
-  id: deploy-app-engine-compras-servicios
-  args: ["-D", "skipTests", "clean", "package", "appengine:deploy","-P${_ENV}","-Dapp.stage.appEngineDirectory=src/main/appengine/${_ENV}"]
+#Compiling code
+- name: maven:3.8.6-jdk-11
+  id: compile-code
+  entrypoint: mvn
+  args: ["clean","install", "-Dmaven.test.skip=true"]
 
-   
+#Creating docker image with latest, build_id, commit id tags
+- name: 'gcr.io/cloud-builders/docker'
+  id: create-docker-image
+  args:
+    - 'build'
+    - '--build-arg=profile=${_ENV}'
+    - '--tag=gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}'
+    - '--tag=gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}:$BUILD_ID'
+    - '--tag=gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}:$SHORT_SHA'
+    - '.'
+    
+#Pushing docker image
+- name: 'gcr.io/cloud-builders/docker'
+  id: push-docker-image
+  args: [ 'push', 'gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}','-a']
+
+#deploying docker image to GCE
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  id: update-GCE
+  args:
+    - '-c'
+    - |-
+      echo "setting project id"
+      gcloud config set project $PROJECT_ID
+      echo " compute engine is connecting and deploying the newly generated image = gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}:$BUILD_ID"
+      gcloud compute ssh --strict-host-key-checking=no --ssh-key-expire-after=2m --zone $_ZONE  $_GCE_NAME --tunnel-through-iap --project $PROJECT_ID --command="oldImage='$(</opt/lastestDeployedImage)' ; gcloud auth configure-docker ; echo 'stopping image'; docker container stop $_IMAGE_NAME ; echo 'Removing container $_IMAGE_NAME'; docker container rm -f $_IMAGE_NAME ;  echo 'Removing image old image $_IMAGE_NAME - $oldImage' ; docker image rm -f '$oldImage'; docker image prune  -a --force --filter 'until=9h'; echo 'pulling image feedmaster from GCP -  gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}:$BUILD_ID' ; docker pull 'gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}:$BUILD_ID' ; echo 'Running image $_IMAGE_NAME' ; docker run -e 'SPRING_PROFILES_ACTIVE=$_ENV' --name $_IMAGE_NAME -v /opt/portal/:/opt/portal --network 'host' -d -p 8080:8080 gcr.io/$PROJECT_ID/${_ENV}/${_IMAGE_NAME}:$BUILD_ID ; >'/opt/lastestDeployedImage' ; echo 'gcr.io/'"$PROJECT_ID"'/'"${_ENV}"'/'"${_IMAGE_NAME}"':'"$BUILD_ID" >'/opt/lastestDeployedImage' ; echo 'image deployed'"
+substitutions:
+  _IMAGE_NAME: portal
+  _ENV: test
+  _GCE_NAME: portal-api-sandbox
+  _ZONE: us-central1-a
 options:
-   substitution_option: 'ALLOW_LOOSE'
+  substitution_option: 'ALLOW_LOOSE'

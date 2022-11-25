@@ -1,4 +1,5 @@
-FROM openjdk:8-jdk-alpine
+FROM openjdk:11
+RUN echo "Building Docker for Interviewportal"
 ARG JAR_FILE=target/*.jar
-COPY ${JAR_FILE} app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+COPY ${JAR_FILE} portal.jar
+ENTRYPOINT ["java","-Xms512m","-Xmx2048m","-XX:+UseStringDeduplication","-jar","/portal.jar"]
