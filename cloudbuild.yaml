@@ -35,7 +35,7 @@ steps:
 substitutions:
   _IMAGE_NAME: portal
   _ENV: test
-  _GCE_NAME: portal-api-sandbox
+ # _GCE_NAME: portal-api-sandbox
   _ZONE: us-central1-a
 options:
   substitution_option: 'ALLOW_LOOSE'
